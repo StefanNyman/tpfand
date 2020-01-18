@@ -12,6 +12,7 @@
 #define FAN_PATH PROC_PATH "/fan"
 #define CORETEMP_PATH "/sys/devices/platform/coretemp.0"
 #define HWMON_PATH CORETEMP_PATH "/hwmon"
+#define CONFIG_PATH "/etc/tpfand.config"
 
 typedef struct tmp_lvl {
     uint8_t tmp;

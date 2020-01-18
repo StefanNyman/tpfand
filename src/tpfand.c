@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "args.h"
 #include "config.h"
@@ -37,7 +38,11 @@ void help() {
     printf("\t -r: run\n\n");
 }
 
-void version() { printf("%s: %s\n", BINARY, VERSION); }
+void version() { 
+#if defined(BINARY) && defined(VERSION)
+    printf("%s: %s\n", BINARY, VERSION); 
+#endif    
+}
 
 void cleanup() { fan_cleanup(); }
 
@@ -59,15 +64,20 @@ void signal_handler(int sig) {
 }
 
 void run() {
-    struct sigaction sig_int_handler;
-    sig_int_handler.sa_handler = signal_handler;
-    sigemptyset(&sig_int_handler.sa_mask);
-    sigaction(SIGINT, &sig_int_handler, NULL);
-    sigaction(SIGTERM, &sig_int_handler, NULL);
+#ifdef _GNU_SOURCE
+    static struct sigaction sig_handler;
+    memset(&sig_handler, 0, sizeof(sig_handler));
+    sig_handler.sa_handler = signal_handler;
+    sigemptyset(&sig_handler.sa_mask);
+    sigaction(SIGINT, &sig_handler, NULL);
+    sigaction(SIGTERM, &sig_handler, NULL);
+#endif
 
+    /*
     if (!fan_control_enabled()) {
         die("", EXIT_FAILURE);
     }
+    */
 
     if (!find_max_temp_path()) {
         die("", EXIT_FAILURE);
@@ -76,8 +86,9 @@ void run() {
     if (!find_input_temp_path()) {
         die("", EXIT_FAILURE);
     }
-
+#if defined(BINARY) && defined(VERSION)
     printf("%s: %s starting\n", BINARY, VERSION);
+#endif
     config_t cfg;
     default_config(&cfg);
     read_config(&cfg);

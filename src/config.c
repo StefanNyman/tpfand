@@ -1,5 +1,4 @@
 #include "config.h"
-
 #include "util.h"
 
 void read_config(config_t* cfg) { _assert(cfg != NULL, "got null config"); }

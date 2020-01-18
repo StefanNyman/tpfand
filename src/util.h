@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <regex.h>
+
 #ifdef DEBUG
 #define _assert(c, m)                                                  \
     do {                                                               \
@@ -31,4 +34,5 @@
 #define DBGF(fmt, ...) (void)(0)
 #endif
 
+void traverse_dir(char *path, regex_t patt, char **outlst, uint16_t *lst_size); 
 #endif

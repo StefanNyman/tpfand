@@ -1,15 +1,15 @@
 #include "fan.h"
 
-#include <dirent.h>
 #include <regex.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "config.h"
 #include "util.h"
 
-char* max_temp_path = NULL;
-char* input_temp_path = NULL;
+char *max_temp_path = NULL;
+char *input_temp_path = NULL;
 
 void fan_cleanup() {
     if (max_temp_path != NULL) {
@@ -20,71 +20,42 @@ void fan_cleanup() {
     }
 }
 
-char* join_path(char* path, char* append) {
-    if (path == NULL || append == NULL) {
-        DBG("pointers invalid");
-        return NULL;
+int qsrt_comparator(const void *a, const void *b) {
+    if (a == NULL) {
+        return 0;
     }
-    int psize = strlen(path);
-    int asize = strlen(append);
-    int size = psize + asize + 2;
-    char* buf = calloc(1, size + sizeof(char));
-    if (buf == NULL) {
-        fprintf(stderr, "Could not allocate buffer of size: %d\n", size);
-        exit(1);
+    if (b == NULL) {
+        return -1;
     }
-    memcpy(buf, path, strlen(path));
-    memcpy(buf + psize, "/", 1);
-    memcpy(buf + psize + 1, append, asize);
-    return buf;
+    return strcmp(*(char **)a, *(char **)b);
 }
 
-char* traverse_dir(char* path, regex_t patt) {
-    char* target = NULL;
-    struct dirent* de;
-    DIR* dr = opendir(path);
-    if (dr == NULL) {
-        DBGF("failed to open path: %s\n", path);
-        return false;
+void find_path(char *path, regex_t rgx, char **out_path) {
+    uint16_t lst_size = 10;
+    char **lst = (char **)calloc(lst_size, sizeof(char *));
+    if (lst == NULL) {
+        fprintf(stderr, "Could not alloc list of size %d\n", lst_size);
+        return;
     }
-    while ((de = readdir(dr)) != NULL) {
-        printf("%s\n", de->d_name);
-        switch (de->d_type) {
-            case DT_DIR: {
-                if (strncmp(de->d_name, ".", 1) == 0 ||
-                    strncmp(de->d_name, "..", 2) == 0) {
-                    continue;
-                }
-                char* npath = join_path(path, de->d_name);
-                target = traverse_dir(npath, patt);
-                free(npath);
-                if (target != NULL) {
-                    goto cleanup;
-                }
-                break;
-            }
-
-            case DT_REG: {
-                int reti = regexec(&patt, de->d_name, 0, NULL, 0);
-                if (!reti) {
-                    printf("%s matches\n", de->d_name);
-                    target = join_path(path, de->d_name);
-                    goto cleanup;
-                } else {
-                    char msgbuf[100];
-                    regerror(reti, &patt, msgbuf, sizeof(msgbuf));
-                    printf("regex match failed: %s\n", msgbuf);
-                }
-                break;
-            }
-
-            default:
-                continue;
+    traverse_dir(path, rgx, lst, &lst_size);
+    for (uint16_t i = 0; i < lst_size; i++) {
+        if (lst[i] == NULL) {
+            lst_size = i;
+            break;
         }
     }
-cleanup:
-    closedir(dr);
-    return target;
+    qsort(lst, lst_size, sizeof(char *), qsrt_comparator);
+    char *target = lst[0];
+    if (target != NULL) {
+        *out_path = target;
+    }
+    for (uint16_t i = 1; i < lst_size; i++) {
+        if (lst[i] == NULL) {
+            break;
+        }
+        free(lst[i]);
+    }
+    free(lst);
 }
 
 bool find_max_temp_path() {
@@ -96,13 +67,9 @@ bool find_max_temp_path() {
         DBG("could not compile regex");
         return false;
     }
-    char* target = traverse_dir(CORETEMP_PATH, rgx_max_temp);
+    find_path(CORETEMP_PATH, rgx_max_temp, &max_temp_path);
     regfree(&rgx_max_temp);
-    if (target != NULL) {
-        max_temp_path = target;
-        return true;
-    }
-    return false;
+    return max_temp_path != NULL;
 }
 
 bool find_input_temp_path() {
@@ -114,13 +81,13 @@ bool find_input_temp_path() {
         DBG("could not compile regex");
         return false;
     }
-
+    find_path(CORETEMP_PATH, rgx_temp_input, &input_temp_path);
     regfree(&rgx_temp_input);
-    return false;
+    return input_temp_path != NULL;
 }
 
 bool fan_control_enabled() {
-    FILE* fp = fopen(FAN_PATH, "r");
+    FILE *fp = fopen(FAN_PATH, "r");
     if (fp != NULL) {
         fclose(fp);
         return true;
