@@ -3,7 +3,7 @@ BINARY = tpfand
 SRCDIR = src
 BUILDDIR = build
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Werror -Wfatal-errors -pedantic -fstack-protector-all -O2 $(DEBUG) -DVERSION=\"$(VERSION)\" -DBINARY=\"$(BINARY)\" -D_GNU_SOURCE
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror -Wfatal-errors -pedantic -fstack-protector-all -O2 -Wl,-z,relro,-z,now $(DEBUG) -DVERSION=\"$(VERSION)\" -DBINARY=\"$(BINARY)\" -D_GNU_SOURCE -D_FORTIFY_SOURCE=2
 LDFLAGS = 
 SRC := $(wildcard $(SRCDIR)/*.c)
 OBJ := $(addprefix $(BUILDDIR)/,$(SRC:%.c=%.o))
@@ -23,7 +23,10 @@ $(BUILDDIR)/%.o: %.c
 debug:
 	$(MAKE) $(MAKEFILE) DEBUG="-g -DDEBUG"
 
-install: $(BINARY)
+strip:
+	strip $(BINARY)
+
+install: $(BINARY) strip
 	install -D -m755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/$(BINARY)
 	install -D -m644 $(BINARY).conf $(DESTDIR)$(PREFIX)/share/doc/$(BINARY)/$(BINARY).conf
 

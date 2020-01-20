@@ -109,8 +109,14 @@ uint16_t get_temp(char *path) {
         die(buf, EXIT_FAILURE);
     }
     unsigned int val;
-    fscanf(fp, "%u", &val);
+    bool error = fscanf(fp, "%u", &val) != 1;
     fclose(fp);
+    if (error) {
+        char buf[PATH_MAX];
+        sprintf(buf, "error: failed to parse temperature at path: \"%s\"",
+                path);
+        die(buf, EXIT_FAILURE);
+    }
     return (uint16_t)(val / 1000.0);
 }
 
