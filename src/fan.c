@@ -1,9 +1,12 @@
 #include "fan.h"
 
+#include <fcntl.h>
+#include <linux/limits.h>
 #include <regex.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "util.h"
@@ -97,3 +100,89 @@ bool fan_control_enabled() {
         "error: thinkpad_acpi fan_control option disabled. Cannot continue!\n");
     return false;
 }
+
+uint16_t get_temp(char *path) {
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL) {
+        char buf[PATH_MAX];
+        sprintf(buf, "error: could not open \"%s\"", path);
+        die(buf, EXIT_FAILURE);
+    }
+    unsigned int val;
+    fscanf(fp, "%u", &val);
+    fclose(fp);
+    return (uint16_t)(val / 1000.0);
+}
+
+uint16_t get_max_temp() {
+    if (max_temp_path == NULL) {
+        die("error: max temp path not specified.", EXIT_FAILURE);
+    }
+    return get_temp(max_temp_path);
+}
+
+uint16_t get_curr_temp() {
+    if (input_temp_path == NULL) {
+        die("error: temp input path not specified.", EXIT_FAILURE);
+    }
+    return get_temp(input_temp_path);
+}
+
+uint8_t compute_level(uint16_t curr_temp, tmp_direction_t dir, config_t *cfg) {
+    uint8_t level = INVALID_LEVEL;
+    if (dir == INC) {
+        if (curr_temp < cfg->inc_levels[0].tmp) {
+            level = cfg->base_level;
+            goto endcl;
+        }
+        for (int i = N_FAN_LVLS - 1; i >= 0; i--) {
+            if (curr_temp >= cfg->inc_levels[i].tmp) {
+                level = cfg->inc_levels[i].lvl;
+                break;
+            }
+        }
+    }
+    if (dir == DEC) {
+        if (curr_temp < cfg->dec_levels[0].tmp) {
+            level = cfg->base_level;
+            goto endcl;
+        }
+        for (int i = 0; i < N_FAN_LVLS; i++) {
+            if (curr_temp <= cfg->dec_levels[i].tmp) {
+                level = cfg->dec_levels[i].lvl;
+                break;
+            }
+        }
+        if (level == INVALID_LEVEL) {
+            level = cfg->dec_levels[N_FAN_LVLS - 1].lvl;
+        }
+    }
+endcl:
+    return level;
+}
+
+bool level_changed(uint16_t curr_temp, uint8_t prev_level, tmp_direction_t dir,
+                   config_t *cfg) {
+    uint8_t new_level = compute_level(curr_temp, dir, cfg);
+    if (new_level == INVALID_LEVEL) {
+        die("error: compute_level error broken", EXIT_FAILURE);
+    }
+    return new_level != prev_level;
+}
+
+void set_fan_level(uint16_t level) {
+    char buf[20];
+    memset(buf, 0, sizeof(buf));
+    if (!snprintf(buf, 20, "level %u", level)) {
+        die("error: failed to format level string", EXIT_FAILURE);
+    }
+    int file = open(FAN_PATH, O_WRONLY);
+    if (!file) {
+        die("error: could not open fan file", EXIT_FAILURE);
+    }
+    if (write(file, buf, strlen(buf)) == -1) {
+        die("error: coult not write to fan file", EXIT_FAILURE);
+    }
+    close(file);
+}
+

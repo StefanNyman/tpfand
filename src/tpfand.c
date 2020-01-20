@@ -1,7 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "args.h"
 #include "config.h"
@@ -38,23 +38,10 @@ void help() {
     printf("\t -r: run\n\n");
 }
 
-void version() { 
+void version() {
 #if defined(BINARY) && defined(VERSION)
-    printf("%s: %s\n", BINARY, VERSION); 
-#endif    
-}
-
-void cleanup() { fan_cleanup(); }
-
-void die(char* msg, int exit_code) {
-    cleanup();
-    if (system("echo level auto > " FAN_PATH) != 256) {
-        fprintf(stderr, "%s\nfan level set to auto\n", msg);
-    } else {
-        fprintf(stderr, "%s\ncould not set fan level\n", msg);
-        exit_code = EXIT_FAILURE;
-    }
-    exit(exit_code);
+    printf("%s: %s\n", BINARY, VERSION);
+#endif
 }
 
 void signal_handler(int sig) {
@@ -62,6 +49,8 @@ void signal_handler(int sig) {
     snprintf(msg, sizeof(msg), "caught signal %d\n", sig);
     die(msg, EXIT_SUCCESS);
 }
+
+#define FOR_EVER for (;;)
 
 void run() {
 #ifdef _GNU_SOURCE
@@ -73,11 +62,9 @@ void run() {
     sigaction(SIGTERM, &sig_handler, NULL);
 #endif
 
-    /*
     if (!fan_control_enabled()) {
         die("", EXIT_FAILURE);
     }
-    */
 
     if (!find_max_temp_path()) {
         die("", EXIT_FAILURE);
@@ -86,6 +73,7 @@ void run() {
     if (!find_input_temp_path()) {
         die("", EXIT_FAILURE);
     }
+
 #if defined(BINARY) && defined(VERSION)
     printf("%s: %s starting\n", BINARY, VERSION);
 #endif
@@ -93,9 +81,23 @@ void run() {
     default_config(&cfg);
     read_config(&cfg);
 
-    while (1) {
-        DBG("going to sleep");
+    cfg.max_temp = get_max_temp();
+    uint8_t curr_temp = get_curr_temp();
+    tmp_direction_t dir = INC;
+    uint8_t curr_level = INVALID_LEVEL;
+
+    FOR_EVER {
+        uint8_t prev_temp = curr_temp;
+        curr_temp = get_curr_temp();
+        uint8_t prev_level = curr_level;
+
+        if (level_changed(curr_temp, prev_level, dir, &cfg)) {
+            dir = ((curr_temp - prev_temp) > 0) ? INC : DEC;
+            curr_level = compute_level(curr_temp, dir, &cfg);
+            set_fan_level(curr_level);
+            fprintf(stderr, "lvl: %d(%d) -> %d(%d)\n", prev_level, prev_temp,
+                    curr_level, curr_temp);
+        }
         sleep(cfg.poll_inter);
-        DBG("waking up");
     }
 }
