@@ -24,7 +24,7 @@ debug:
 	$(MAKE) $(MAKEFILE) DEBUG="-g -DDEBUG"
 
 install: $(BINARY)
-	intall -D -m755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/$(BINARY)
+	install -D -m755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/$(BINARY)
 	install -D -m644 $(BINARY).conf $(DESTDIR)$(PREFIX)/share/doc/$(BINARY)/$(BINARY).conf
 
 uninstall:
@@ -35,6 +35,8 @@ clean:
 	rm -rf $(BUILDDIR)
 	rm -f $(BINARY) 
 
-.PHONY: install uninstall clean
+check:
+
+.PHONY: install uninstall clean check
 
 
