@@ -29,6 +29,7 @@ strip:
 install: $(BINARY) strip
 	install -D -m755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/$(BINARY)
 	install -D -m644 $(BINARY).conf $(DESTDIR)$(PREFIX)/share/doc/$(BINARY)/$(BINARY).conf
+	install -D -m644 LICENSE $(DESTDIR)$(PREFIX)/share/licenses/$(BINARY)/LICENSE
 
 uninstall:
 	rm -f $(DESTDIR)/$(PREFIX)/bin/$(BINARY)
