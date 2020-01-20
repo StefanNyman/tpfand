@@ -29,11 +29,14 @@ strip:
 install: $(BINARY) strip
 	install -D -m755 $(BINARY) $(DESTDIR)$(PREFIX)/bin/$(BINARY)
 	install -D -m644 $(BINARY).conf $(DESTDIR)$(PREFIX)/share/doc/$(BINARY)/$(BINARY).conf
-	install -D -m644 LICENSE $(DESTDIR)$(PREFIX)/share/licenses/$(BINARY)-git/LICENSE
+	install -D -m644 LICENSE $(DESTDIR)/$(PREFIX)/share/licenses/$(BINARY)-git/LICENSE
+	install -D -m755 tpfand.service $(DESTDIR)/$(PREFIX)/lib/systemd/system/tpfand.service
 
 uninstall:
 	rm -f $(DESTDIR)/$(PREFIX)/bin/$(BINARY)
 	rm -f $(DESTDIR)/$(PREFIX)/share/doc/$(BINARY)/$(BINARY).conf
+	rm -rf $(DESTDIR)/$(PREFIX)/share/licenses/$(BINARY)-git
+	rm $(DESTDIR)/$(PREFIX)/lib/systemd/system/tpfand.service
 
 clean:
 	rm -rf $(BUILDDIR)
