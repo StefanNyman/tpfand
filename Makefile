@@ -3,20 +3,22 @@ BINARY = tpfand
 SRCDIR = src
 BUILDDIR = build
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Werror -Wfatal-errors -pedantic -fstack-protector-all -O2 $(DEBUG) -DVERSION=\"$(VERSION)\" -DBINARY=\"$(BINARY)\"
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror -Wfatal-errors -pedantic -fstack-protector-all -O2 $(DEBUG) -DVERSION=\"$(VERSION)\" -DBINARY=\"$(BINARY)\" -D_GNU_SOURCE
 LDFLAGS = 
-DEPS =
 SRC := $(wildcard $(SRCDIR)/*.c)
 OBJ := $(addprefix $(BUILDDIR)/,$(SRC:%.c=%.o))
+DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 all: $(BINARY)
 
 $(BINARY): $(OBJ)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $(BINARY)
 
+-include $(DEPS)
+
 $(BUILDDIR)/%.o: %.c
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(LDFLAGS) -I$(dir $<) -c $< -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) -I$(dir $<) -MMD -MP -c $< -o $@
 
 debug:
 	$(MAKE) $(MAKEFILE) DEBUG="-g -DDEBUG"
